@@ -1,0 +1,531 @@
+<!doctype html>
+<!--
+  ЗАКОН СТЕНДА
+  Плакат смотрит на доступный формат окна и отвечает плавным масштабированием.
+  Пять осей смотрят на прошедшее время и отвечают непрерывным сдвигом:
+  нечётные идут вверх, чётные вниз, а повтор фигуры подхватывает ушедшую.
+  Переключатель выбирает один темп для всех осей или отдельный для каждой.
+  При открытии автоматический ход выключен; кнопка запускает и останавливает
+  его с текущего положения, сохраняя скорости и возможность перетаскивания.
+  «Сбросить вид» останавливает ход и возвращает положение и ритм всех букв.
+  Наведённая ось меняет вертикальный метр на противоположный: четыре
+  буквы становятся тремя, а три — четырьмя.
+-->
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Braun — systems</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./panel.css">
+  <style>
+    :root {
+      /* ПАРАМЕТРЫ: меняются здесь */
+      --orange: #e54515;
+      --braun-dark: #200903;
+      --poster-scale: 1;
+      --poster-position-x: 50%;
+      --poster-position-y: 50%;
+      --motion-speed: 48;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--orange);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .poster {
+      display: block;
+      width: 100vw;
+      height: 100dvh;
+      transform: scale(var(--poster-scale));
+      transform-origin: var(--poster-position-x) var(--poster-position-y);
+      shape-rendering: geometricPrecision;
+      text-rendering: geometricPrecision;
+    }
+
+    .letter {
+      fill: var(--braun-dark);
+    }
+
+    .meta {
+      fill: var(--braun-dark);
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .meta--overlap {
+      fill: #fff;
+      pointer-events: none;
+    }
+
+    .axis-hit {
+      fill: transparent;
+      pointer-events: all;
+      cursor: grab;
+      outline: none;
+      touch-action: none;
+    }
+
+    .axis-hit.is-dragging {
+      cursor: grabbing;
+    }
+
+  </style>
+</head>
+<body>
+  <svg
+    class="poster"
+    viewBox="0 0 1120 1583"
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-labelledby="poster-title poster-description"
+  >
+    <title id="poster-title">Braun — systems</title>
+    <desc id="poster-description">Векторная реконструкция плаката Studio Feixen для выставки systems, 2013.</desc>
+
+    <defs>
+      <symbol id="letter-b" viewBox="0 0 179 354">
+        <path
+          class="letter"
+          fill-rule="evenodd"
+          d="M0 0H119C152 0 179 27 179 60V117C179 145 160 168 133 176C160 184 179 208 179 237V294C179 327 152 354 119 354H0V0ZM62 59V148H119V59H62ZM62 219V299H119V219H62Z"
+        />
+      </symbol>
+
+      <symbol id="letter-r" viewBox="0 0 179 354">
+        <path
+          class="letter"
+          fill-rule="evenodd"
+          d="M0 0H119C152 0 179 27 179 60V117C179 141 168 160 151 177C168 191 179 211 179 237V354H118V223C118 214 111 207 102 207H60V354H0V0ZM60 59V148H118V59H60Z"
+        />
+      </symbol>
+
+      <symbol id="letter-a" viewBox="0 0 178 491">
+        <path class="letter" d="M0 491V60C0 27 27 0 60 0H118C151 0 178 27 178 60V491H118V60H60V491H0Z" />
+        <rect class="letter" x="0" y="294" width="178" height="59" />
+      </symbol>
+
+      <symbol id="letter-u" viewBox="0 0 177 354">
+        <path class="letter" d="M0 0H59V294H118V0H177V294C177 327 150 354 117 354H60C27 354 0 327 0 294V0Z" />
+      </symbol>
+
+      <symbol id="letter-n" viewBox="0 0 179 354">
+        <path class="letter" d="M0 354V60C0 27 27 0 60 0H119C152 0 179 27 179 60V354H119V60H60V354H0Z" />
+      </symbol>
+
+      <mask id="moving-letters-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1120" height="1583" style="mask-type: luminance; --braun-dark: #fff">
+        <rect width="1120" height="1583" fill="#000" />
+
+        <g class="axis-mask">
+          <use href="#letter-b" x="0" y="-408" width="179" height="354" />
+          <use href="#letter-b" x="0" y="0" width="179" height="354" />
+          <use href="#letter-b" x="0" y="408" width="179" height="354" />
+          <use href="#letter-b" x="0" y="816" width="179" height="354" />
+          <use href="#letter-b" x="0" y="1224" width="179" height="354" />
+          <use href="#letter-b" x="0" y="1632" width="179" height="354" />
+        </g>
+
+        <g class="axis-mask">
+          <use href="#letter-r" x="236" y="-408" width="179" height="354" />
+          <use href="#letter-r" x="236" y="0" width="179" height="354" />
+          <use href="#letter-r" x="236" y="408" width="179" height="354" />
+          <use href="#letter-r" x="236" y="816" width="179" height="354" />
+          <use href="#letter-r" x="236" y="1224" width="179" height="354" />
+          <use href="#letter-r" x="236" y="1632" width="179" height="354" />
+        </g>
+
+        <g class="axis-mask">
+          <use href="#letter-a" x="471" y="-546" width="178" height="491" />
+          <use href="#letter-a" x="471" y="0" width="178" height="491" />
+          <use href="#letter-a" x="471" y="546" width="178" height="491" />
+          <use href="#letter-a" x="471" y="1092" width="178" height="491" />
+          <use href="#letter-a" x="471" y="1638" width="178" height="491" />
+        </g>
+
+        <g class="axis-mask">
+          <use href="#letter-u" x="707" y="-408" width="177" height="354" />
+          <use href="#letter-u" x="707" y="0" width="177" height="354" />
+          <use href="#letter-u" x="707" y="408" width="177" height="354" />
+          <use href="#letter-u" x="707" y="816" width="177" height="354" />
+          <use href="#letter-u" x="707" y="1224" width="177" height="354" />
+          <use href="#letter-u" x="707" y="1632" width="177" height="354" />
+        </g>
+
+        <g class="axis-mask">
+          <use href="#letter-n" x="941" y="-408" width="179" height="354" />
+          <use href="#letter-n" x="941" y="0" width="179" height="354" />
+          <use href="#letter-n" x="941" y="408" width="179" height="354" />
+          <use href="#letter-n" x="941" y="816" width="179" height="354" />
+          <use href="#letter-n" x="941" y="1224" width="179" height="354" />
+          <use href="#letter-n" x="941" y="1632" width="179" height="354" />
+        </g>
+      </mask>
+    </defs>
+
+    <rect width="1120" height="1583" fill="var(--orange)" />
+
+    <g aria-hidden="true">
+      <g class="axis" data-direction="-1" data-period="408" data-hover-period="546">
+        <use href="#letter-b" x="0" y="-408" width="179" height="354" />
+        <use href="#letter-b" x="0" y="0" width="179" height="354" />
+        <use href="#letter-b" x="0" y="408" width="179" height="354" />
+        <use href="#letter-b" x="0" y="816" width="179" height="354" />
+        <use href="#letter-b" x="0" y="1224" width="179" height="354" />
+        <use href="#letter-b" x="0" y="1632" width="179" height="354" />
+      </g>
+
+      <g class="axis" data-direction="1" data-period="408" data-hover-period="546">
+        <use href="#letter-r" x="236" y="-408" width="179" height="354" />
+        <use href="#letter-r" x="236" y="0" width="179" height="354" />
+        <use href="#letter-r" x="236" y="408" width="179" height="354" />
+        <use href="#letter-r" x="236" y="816" width="179" height="354" />
+        <use href="#letter-r" x="236" y="1224" width="179" height="354" />
+        <use href="#letter-r" x="236" y="1632" width="179" height="354" />
+      </g>
+
+      <g class="axis" data-direction="-1" data-period="546" data-hover-period="408">
+        <use href="#letter-a" x="471" y="-546" width="178" height="491" />
+        <use href="#letter-a" x="471" y="0" width="178" height="491" />
+        <use href="#letter-a" x="471" y="546" width="178" height="491" />
+        <use href="#letter-a" x="471" y="1092" width="178" height="491" />
+        <use href="#letter-a" x="471" y="1638" width="178" height="491" />
+      </g>
+
+      <g class="axis" data-direction="1" data-period="408" data-hover-period="546">
+        <use href="#letter-u" x="707" y="-408" width="177" height="354" />
+        <use href="#letter-u" x="707" y="0" width="177" height="354" />
+        <use href="#letter-u" x="707" y="408" width="177" height="354" />
+        <use href="#letter-u" x="707" y="816" width="177" height="354" />
+        <use href="#letter-u" x="707" y="1224" width="177" height="354" />
+        <use href="#letter-u" x="707" y="1632" width="177" height="354" />
+      </g>
+
+      <g class="axis" data-direction="-1" data-period="408" data-hover-period="546">
+        <use href="#letter-n" x="941" y="-408" width="179" height="354" />
+        <use href="#letter-n" x="941" y="0" width="179" height="354" />
+        <use href="#letter-n" x="941" y="408" width="179" height="354" />
+        <use href="#letter-n" x="941" y="816" width="179" height="354" />
+        <use href="#letter-n" x="941" y="1224" width="179" height="354" />
+        <use href="#letter-n" x="941" y="1632" width="179" height="354" />
+      </g>
+    </g>
+
+    <g class="meta">
+      <text x="236" y="378" font-size="13">systems</text>
+
+      <text x="705" y="379" font-size="16">
+        <tspan x="705" dy="0">Walter</tspan>
+        <tspan x="705" dy="17">Knoll</tspan>
+      </text>
+
+      <text x="236" y="790" font-size="16">
+        <tspan x="236" dy="0">25 Nov —</tspan>
+        <tspan x="236" dy="18">31 Dec 2013</tspan>
+      </text>
+
+      <text x="705" y="790" font-size="16">
+        <tspan x="705" dy="0">42 Charterhouse</tspan>
+        <tspan x="705" dy="18">Square</tspan>
+      </text>
+
+      <text x="705" y="1198" font-size="16">
+        <tspan x="705" dy="0">London</tspan>
+        <tspan x="705" dy="18">EC 1M 6EA</tspan>
+      </text>
+
+      <text x="1057" y="1193" font-size="8">
+        <tspan x="1057" dy="0">Design</tspan>
+        <tspan x="1057" dy="9">by</tspan>
+        <tspan x="1057" dy="9">Felix</tspan>
+        <tspan x="1057" dy="9">Pfäffli</tspan>
+      </text>
+    </g>
+
+    <g class="meta meta--overlap" mask="url(#moving-letters-mask)" aria-hidden="true">
+      <text x="236" y="378" font-size="13">systems</text>
+
+      <text x="705" y="379" font-size="16">
+        <tspan x="705" dy="0">Walter</tspan>
+        <tspan x="705" dy="17">Knoll</tspan>
+      </text>
+
+      <text x="236" y="790" font-size="16">
+        <tspan x="236" dy="0">25 Nov —</tspan>
+        <tspan x="236" dy="18">31 Dec 2013</tspan>
+      </text>
+
+      <text x="705" y="790" font-size="16">
+        <tspan x="705" dy="0">42 Charterhouse</tspan>
+        <tspan x="705" dy="18">Square</tspan>
+      </text>
+
+      <text x="705" y="1198" font-size="16">
+        <tspan x="705" dy="0">London</tspan>
+        <tspan x="705" dy="18">EC 1M 6EA</tspan>
+      </text>
+
+      <text x="1057" y="1193" font-size="8">
+        <tspan x="1057" dy="0">Design</tspan>
+        <tspan x="1057" dy="9">by</tspan>
+        <tspan x="1057" dy="9">Felix</tspan>
+        <tspan x="1057" dy="9">Pfäffli</tspan>
+      </text>
+    </g>
+
+    <g aria-label="Области наведения на оси">
+      <rect class="axis-hit" data-axis="0" x="0" y="0" width="179" height="1583" tabindex="0" role="button" aria-label="Ось 1: сменить ритм с четырёх букв на три" />
+      <rect class="axis-hit" data-axis="1" x="236" y="0" width="179" height="1583" tabindex="0" role="button" aria-label="Ось 2: сменить ритм с четырёх букв на три" />
+      <rect class="axis-hit" data-axis="2" x="471" y="0" width="178" height="1583" tabindex="0" role="button" aria-label="Ось 3: сменить ритм с трёх букв на четыре" />
+      <rect class="axis-hit" data-axis="3" x="707" y="0" width="177" height="1583" tabindex="0" role="button" aria-label="Ось 4: сменить ритм с четырёх букв на три" />
+      <rect class="axis-hit" data-axis="4" x="941" y="0" width="179" height="1583" tabindex="0" role="button" aria-label="Ось 5: сменить ритм с четырёх букв на три" />
+    </g>
+  </svg>
+
+  <script src="./panel.js"></script>
+  <script src="./panel-lib/toggle.js"></script>
+  <script src="./panel-lib/obyavlenie.js"></script>
+  <script>
+    const DEFAULTS = {
+      motionEnabled: false,
+      speed: 26,
+      syncSpeeds: true,
+      axisSpeed1: 26,
+      axisSpeed2: 26,
+      axisSpeed3: 26,
+      axisSpeed4: 26,
+      axisSpeed5: 26,
+      rhythmStrength: 100,
+      rhythmInertia: 0
+    };
+    const P = Object.assign({}, DEFAULTS);
+    try {
+      Object.assign(P, JSON.parse(localStorage.getItem('braun-poster-motion') || '{}'));
+    } catch (error) {}
+
+    function syncAxisSpeeds() {
+      for (let index = 1; index <= 5; index += 1) {
+        P[`axisSpeed${index}`] = P.speed;
+      }
+    }
+
+    function applyParameters(key) {
+      if (P.syncSpeeds && (key === 'speed' || key === 'syncSpeeds')) {
+        syncAxisSpeeds();
+      }
+      document.documentElement.style.setProperty('--motion-speed', P.speed);
+    }
+
+    applyParameters();
+
+    const motionPanel = StendPanel.build({
+      storageKey: 'braun-poster-motion',
+      params: P,
+      defaults: DEFAULTS,
+      zakon: [
+        ['h', 'Ход', { gde: 'Оси' }],
+        ['g', 'Режим'],
+        ['motionEnabled', 'Движение осей', 'двоичное', { podpisi: ['Включить движение', 'Выключить движение'] }],
+        ['syncSpeeds', 'Одна скорость', 'двоичное', { podpisi: ['Включить одну скорость', 'Разделить скорости'] }],
+        ['speed', 'Общая', 'скорость', { ot0: 0, pri: { syncSpeeds: true } }],
+        ['g', 'Отдельные оси'],
+        ['axisSpeed1', 'Ось 1', 'скорость', { ot0: 0, pri: { syncSpeeds: false } }],
+        ['axisSpeed2', 'Ось 2', 'скорость', { ot0: 0, pri: { syncSpeeds: false } }],
+        ['axisSpeed3', 'Ось 3', 'скорость', { ot0: 0, pri: { syncSpeeds: false } }],
+        ['axisSpeed4', 'Ось 4', 'скорость', { ot0: 0, pri: { syncSpeeds: false } }],
+        ['axisSpeed5', 'Ось 5', 'скорость', { ot0: 0, pri: { syncSpeeds: false } }],
+        ['h', 'Перемена ритма', { gde: 'Оси' }],
+        ['g', 'Наведение'],
+        ['rhythmStrength', 'Сила', 'сила'],
+        ['rhythmInertia', 'Инерция', 'инерция']
+      ],
+      mesta: {
+        'Оси': '.axis'
+      },
+      desc: {
+        motionEnabled: 'Запускает или останавливает автоматическое движение всех осей. Перетаскивание доступно и на паузе.',
+        syncSpeeds: 'Переключает между одной общей скоростью и пятью независимыми скоростями осей.',
+        speed: 'Одинаковая скорость всех пяти осей: нечётные идут вверх, чётные — вниз.',
+        axisSpeed1: 'Скорость первой оси B вверх.',
+        axisSpeed2: 'Скорость второй оси R вниз.',
+        axisSpeed3: 'Скорость третьей оси A вверх.',
+        axisSpeed4: 'Скорость четвёртой оси U вниз.',
+        axisSpeed5: 'Скорость пятой оси N вверх.',
+        rhythmStrength: 'Насколько наведённая ось доходит до противоположного ритма: четыре буквы меняются на три, а три — на четыре.',
+        rhythmInertia: 'Насколько мягко ось растягивается и возвращается после наведения.'
+      },
+      onChange: applyParameters
+    });
+
+    // Каждый новый запуск начинается на паузе, даже если раньше ход включали.
+    P.motionEnabled = false;
+    motionPanel.obnovit();
+    motionPanel.save();
+
+    const axisMasks = [...document.querySelectorAll('.axis-mask')];
+    const axisHits = [...document.querySelectorAll('.axis-hit')];
+    const poster = document.querySelector('.poster');
+    const axes = [...document.querySelectorAll('.axis')].map((element, index) => ({
+      element,
+      mask: axisMasks[index],
+      direction: Number(element.dataset.direction),
+      period: Number(element.dataset.period),
+      hoverPeriod: Number(element.dataset.hoverPeriod),
+      phase: 0,
+      rhythmScale: 1,
+      hovered: false,
+      pointerOver: false,
+      focused: false,
+      dragging: false,
+      pointerId: null,
+      lastPointerY: 0
+    }));
+
+    axisHits.forEach((hit, index) => {
+      const axis = axes[index];
+      const updateHover = () => {
+        axis.hovered = axis.pointerOver || axis.focused || axis.dragging;
+      };
+
+      hit.addEventListener('pointerenter', () => {
+        axis.pointerOver = true;
+        updateHover();
+      });
+
+      hit.addEventListener('pointerleave', () => {
+        axis.pointerOver = false;
+        updateHover();
+      });
+
+      hit.addEventListener('focus', () => {
+        axis.focused = true;
+        updateHover();
+      });
+
+      hit.addEventListener('blur', () => {
+        axis.focused = false;
+        updateHover();
+      });
+
+      hit.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        axis.dragging = true;
+        axis.pointerId = event.pointerId;
+        axis.lastPointerY = event.clientY;
+        hit.classList.add('is-dragging');
+        hit.setPointerCapture(event.pointerId);
+        updateHover();
+        event.preventDefault();
+      });
+
+      hit.addEventListener('pointermove', (event) => {
+        if (!axis.dragging) return;
+
+        const posterHeight = poster.getBoundingClientRect().height || 1;
+        const delta = (event.clientY - axis.lastPointerY) * (1583 / posterHeight);
+        const livePeriod = axis.period * axis.rhythmScale;
+        axis.phase += delta / livePeriod; // без ручки: фигура следует за рукой 1:1
+        axis.phase = ((axis.phase % 1) + 1) % 1;
+        axis.lastPointerY = event.clientY;
+        event.preventDefault();
+      });
+
+      const release = (event) => {
+        if (!axis.dragging) return;
+        axis.dragging = false;
+        axis.pointerId = null;
+        hit.classList.remove('is-dragging');
+        if (hit.hasPointerCapture(event.pointerId)) hit.releasePointerCapture(event.pointerId);
+        updateHover();
+      };
+
+      hit.addEventListener('pointerup', release);
+      hit.addEventListener('pointercancel', release);
+    });
+
+    let previousTime = performance.now();
+
+    function resetView() {
+      P.motionEnabled = false;
+      axes.forEach((axis, index) => {
+        const hit = axisHits[index];
+        if (axis.pointerId !== null && hit.hasPointerCapture(axis.pointerId)) {
+          hit.releasePointerCapture(axis.pointerId);
+        }
+        if (document.activeElement === hit) hit.blur();
+        axis.phase = 0;
+        axis.rhythmScale = 1;
+        axis.hovered = false;
+        axis.pointerOver = false;
+        axis.focused = false;
+        axis.dragging = false;
+        axis.pointerId = null;
+        axis.lastPointerY = 0;
+        hit.classList.remove('is-dragging');
+        axis.element.setAttribute('transform', 'translate(0 0) scale(1 1)');
+        axis.mask.setAttribute('transform', 'translate(0 0) scale(1 1)');
+      });
+      previousTime = performance.now();
+      motionPanel.obnovit();
+      motionPanel.save();
+    }
+
+    const resetViewRow = document.createElement('div');
+    resetViewRow.className = 'row';
+    const resetViewButton = document.createElement('button');
+    resetViewButton.type = 'button';
+    resetViewButton.className = 'st-toggle';
+    resetViewButton.textContent = 'Сбросить вид';
+    resetViewButton.title = 'Вернуть исходное положение и ритм букв, выключить движение';
+    resetViewButton.addEventListener('click', resetView);
+    resetViewRow.appendChild(resetViewButton);
+    motionPanel.panel.querySelector('[data-k="motionEnabled"]').after(resetViewRow);
+
+    function animate(currentTime) {
+      const elapsed = Math.min((currentTime - previousTime) / 1000, 0.05);
+      previousTime = currentTime;
+
+      axes.forEach((axis, index) => {
+        const fullHoverScale = axis.hoverPeriod / axis.period;
+        const strength = P.rhythmStrength / 100;
+        const targetScale = axis.hovered ? 1 + (fullHoverScale - 1) * strength : 1;
+        const responseTime = 0.02 + (P.rhythmInertia / 100) * 0.86;
+        const follow = 1 - Math.exp(-elapsed / responseTime);
+
+        axis.rhythmScale += (targetScale - axis.rhythmScale) * follow;
+        if (Math.abs(targetScale - axis.rhythmScale) < 0.0001) axis.rhythmScale = targetScale;
+
+        const livePeriod = axis.period * axis.rhythmScale;
+        if (P.motionEnabled && !axis.dragging) {
+          const speed = P.syncSpeeds ? P.speed : P[`axisSpeed${index + 1}`];
+          axis.phase += axis.direction * speed * elapsed / livePeriod;
+        }
+        axis.phase = ((axis.phase % 1) + 1) % 1;
+
+        const wrappedOffset = axis.phase * livePeriod;
+        const transform = `translate(0 ${wrappedOffset}) scale(1 ${axis.rhythmScale})`;
+        axis.element.setAttribute('transform', transform);
+        axis.mask.setAttribute('transform', transform);
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

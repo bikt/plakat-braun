@@ -1,0 +1,14 @@
+# Локальные заявки панели и настройки компьютера
+.zayavki/
+.zayavka/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
+.vercel/
+
