@@ -7,7 +7,7 @@
   Переключатель выбирает один темп для всех осей или отдельный для каждой.
   При каждом открытии включается искажённый эталон; кнопка запускает и
   останавливает ход с текущего положения, сохраняя возможность перетаскивания.
-  «Сбросить вид» останавливает ход и возвращает положение и ритм всех букв.
+  Обычный вид останавливает ход и возвращает положение и ритм всех букв.
   Наведённая ось меняет вертикальный метр на противоположный: четыре
   буквы становятся тремя, а три — четырьмя.
   Одна общая кривая задаёт боковой сдвиг на каждой высоте всем пяти осям.
@@ -725,17 +725,6 @@
     // Стартовый вид всегда берём из эталона, даже после обычного режима
     // или старых настроек браузера. Тумблер остаётся доступен после старта.
     restoreDistortedView();
-
-    const resetViewRow = document.createElement('div');
-    resetViewRow.className = 'row';
-    const resetViewButton = document.createElement('button');
-    resetViewButton.type = 'button';
-    resetViewButton.className = 'st-toggle';
-    resetViewButton.textContent = 'Сбросить вид';
-    resetViewButton.title = 'Выпрямить поток, вернуть исходное положение и ритм букв, выключить движение';
-    resetViewButton.addEventListener('click', resetView);
-    resetViewRow.appendChild(resetViewButton);
-    motionPanel.panel.querySelector('[data-k="motionEnabled"]').after(resetViewRow);
 
     function animate(currentTime) {
       const elapsed = Math.min((currentTime - previousTime) / 1000, 0.05);
