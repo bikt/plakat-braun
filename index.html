@@ -12,6 +12,8 @@
   буквы становятся тремя, а три — четырьмя.
   Одна общая кривая задаёт боковой сдвиг на каждой высоте всем пяти осям.
   Пластичность выбирает сдвиг целой буквы или изгиб её векторного контура.
+  Тумблер вида выбирает обычный неподвижный плакат или сохранённый
+  искажённый эталон с общей кривой и отдельными скоростями осей.
 -->
 <html lang="ru">
 <head>
@@ -315,6 +317,7 @@
       zamknut: false
     });
     const DEFAULTS = {
+      distortedView: true,
       motionEnabled: true,
       speed: 26,
       syncSpeeds: false,
@@ -348,6 +351,7 @@
     let flowRevision = 0;
     let flowProfile = [];
     let flowActive = false;
+    let viewsReady = false;
 
     function syncAxisSpeeds() {
       for (let index = 1; index <= 5; index += 1) {
@@ -356,6 +360,17 @@
     }
 
     function applyParameters(key) {
+      if (viewsReady && key === 'distortedView') {
+        if (P.distortedView) restoreDistortedView();
+        else resetView();
+        return;
+      }
+      if (viewsReady && !P.distortedView &&
+          (key?.startsWith('flow') || (key === 'motionEnabled' && P.motionEnabled))) {
+        P.distortedView = true;
+        motionPanel.obnovit();
+        motionPanel.save();
+      }
       if (P.syncSpeeds && (key === 'speed' || key === 'syncSpeeds')) {
         syncAxisSpeeds();
       }
@@ -372,6 +387,7 @@
       defs: [...StendPanel.izObyavleniya([
         ['h', 'Ход', { gde: 'Оси' }],
         ['g', 'Режим'],
+        ['distortedView', 'Вид', 'двоичное', { podpisi: ['Включить искажённый вид', 'Вернуть обычный вид'] }],
         ['motionEnabled', 'Движение осей', 'двоичное', { podpisi: ['Включить движение', 'Выключить движение'] }],
         ['syncSpeeds', 'Одна скорость', 'двоичное', { podpisi: ['Включить одну скорость', 'Разделить скорости'] }],
         ['speed', 'Общая', 'скорость', { ot0: 0, pri: { syncSpeeds: true } }],
@@ -397,6 +413,7 @@
         'Оси': '.axis'
       },
       desc: {
+        distortedView: 'Переключает между обычным неподвижным плакатом и искажённым эталоном, опубликованным на Vercel: возвращает его кривую и скорости.',
         motionEnabled: 'Запускает или останавливает автоматическое движение всех осей. Перетаскивание доступно и на паузе.',
         syncSpeeds: 'Переключает между одной общей скоростью и пятью независимыми скоростями осей.',
         speed: 'Одинаковая скорость всех пяти осей: нечётные идут вверх, чётные — вниз.',
@@ -663,11 +680,26 @@
     let previousTime = performance.now();
 
     function resetView() {
+      P.distortedView = false;
       P.motionEnabled = false;
       P.flowTrajectory = straightTrajectory();
       P.flowStrength = DEFAULTS.flowStrength;
       P.flowPlasticity = DEFAULTS.flowPlasticity;
       rebuildFlow();
+      resetAxisPositions();
+      motionPanel.obnovit();
+      motionPanel.save();
+    }
+
+    function restoreDistortedView() {
+      Object.assign(P, JSON.parse(JSON.stringify(DEFAULTS)));
+      rebuildFlow();
+      resetAxisPositions();
+      motionPanel.obnovit();
+      motionPanel.save();
+    }
+
+    function resetAxisPositions() {
       axes.forEach((axis, index) => {
         const hit = axisHits[index];
         if (axis.pointerId !== null && hit.hasPointerCapture(axis.pointerId)) {
@@ -687,9 +719,10 @@
         axis.mask.setAttribute('transform', 'translate(0 0) scale(1 1)');
       });
       previousTime = performance.now();
-      motionPanel.obnovit();
-      motionPanel.save();
     }
+
+    viewsReady = true;
+    if (!P.distortedView) resetView();
 
     const resetViewRow = document.createElement('div');
     resetViewRow.className = 'row';
