@@ -108,33 +108,36 @@
     <desc id="poster-description">Векторная реконструкция плаката Studio Feixen для выставки systems, 2013.</desc>
 
     <defs>
-      <symbol id="letter-b" viewBox="0 0 179 354">
+      <!-- Исходные контуры: Figma c082R8jdTFoigD6nM63tQr, страница 598:47.
+           Контуры не перерисовываются; размеры ячеек и ритм осей сохранены.
+           N в макете отражена по вертикали — сохраняем её матрицу. -->
+      <symbol id="letter-b" viewBox="0 0 89 245" preserveAspectRatio="none" data-figma-node="598:66">
         <path
           class="letter"
           fill-rule="evenodd"
-          d="M0 0H119C152 0 179 27 179 60V117C179 145 160 168 133 176C160 184 179 208 179 237V294C179 327 152 354 119 354H0V0ZM62 59V148H119V59H62ZM62 219V299H119V219H62Z"
+          d="M60 0C76.0163 0 89 12.9837 89 29V102C89 110.263 85.5439 117.718 79.999 123C85.5439 128.282 89 135.737 89 144V216C89 232.016 76.0163 245 60 245H0V0H60ZM30 215H54C56.7614 215 59 212.761 59 210V143C59 140.239 56.7614 138 54 138H30V215ZM30 109H53C56.3137 109 59 106.314 59 103V35C59 32.2386 56.7614 30 54 30H30V109Z"
         />
       </symbol>
 
-      <symbol id="letter-r" viewBox="0 0 179 354">
+      <symbol id="letter-r" viewBox="0 0 89 176.5" preserveAspectRatio="none" data-figma-node="598:64">
         <path
           class="letter"
           fill-rule="evenodd"
-          d="M0 0H119C152 0 179 27 179 60V117C179 141 168 160 151 177C168 191 179 211 179 237V354H118V223C118 214 111 207 102 207H60V354H0V0ZM60 59V148H118V59H60Z"
+          d="M60 0C76.0163 0 89 12.9837 89 29V67C89 75.7988 85.0807 83.6816 78.8936 89C85.0807 94.3184 89 102.201 89 111V176.5H59V110C59 106.134 55.866 103 52 103H30V176.5H0V0H60ZM30 74H54C56.7614 74 59 71.7614 59 69V35C59 32.2386 56.7614 30 54 30H30V74Z"
         />
       </symbol>
 
-      <symbol id="letter-a" viewBox="0 0 178 491">
-        <path class="letter" d="M0 491V60C0 27 27 0 60 0H118C151 0 178 27 178 60V491H118V60H60V491H0Z" />
-        <rect class="letter" x="0" y="294" width="178" height="59" />
+      <symbol id="letter-a" viewBox="0 0 89 244" preserveAspectRatio="none" data-figma-node="598:57">
+        <path class="letter" d="M89 244H59V36C59 32.6863 56.3137 30 53 30H36C32.6863 30 30 32.6863 30 36V244H0V29C0 12.9837 12.9837 0 29 0H60C76.0163 0 89 12.9837 89 29V244Z" />
+        <path class="letter" d="M74 141.5V170.5H15V141.5H74Z" />
       </symbol>
 
-      <symbol id="letter-u" viewBox="0 0 177 354">
-        <path class="letter" d="M0 0H59V294H118V0H177V294C177 327 150 354 117 354H60C27 354 0 327 0 294V0Z" />
+      <symbol id="letter-u" viewBox="0 0 89 176" preserveAspectRatio="none" data-figma-node="598:51">
+        <path class="letter" d="M89 0H59V140C59 143.314 56.3137 146 53 146H36C32.6863 146 30 143.314 30 140V0H0V147C0 163.016 12.9837 176 29 176H60C76.0163 176 89 163.016 89 147V0Z" />
       </symbol>
 
-      <symbol id="letter-n" viewBox="0 0 179 354">
-        <path class="letter" d="M0 354V60C0 27 27 0 60 0H119C152 0 179 27 179 60V354H119V60H60V354H0Z" />
+      <symbol id="letter-n" viewBox="0 0 89 246" preserveAspectRatio="none" data-figma-node="598:54">
+        <path class="letter" transform="matrix(1 0 0 -1 0 246)" d="M89 0H59V210C59 213.314 56.3137 216 53 216H36C32.6863 216 30 213.314 30 210V0H0V217C0 233.016 12.9837 246 29 246H60C76.0163 246 89 233.016 89 217V0Z" />
       </symbol>
 
       <mask id="moving-letters-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1120" height="1583" style="mask-type: luminance; --braun-dark: #fff">
@@ -550,18 +553,28 @@
       axis.mask.append(axis.maskWarp);
       axis.tiles = axis.originals.map((use, tileIndex) => {
         const symbol = document.querySelector(use.getAttribute('href'));
+        const box = symbol.viewBox.baseVal;
+        const scaleX = Number(use.getAttribute('width')) / box.width;
+        const scaleY = Number(use.getAttribute('height')) / box.height;
         return {
           x: Number(use.getAttribute('x')), y: Number(use.getAttribute('y')),
           height: Number(use.getAttribute('height')),
           shapes: [...symbol.children].map((shape, shapeIndex) => {
-            const d = shape.tagName === 'rect'
-              ? 'M0 294H178V353H0Z' : shape.getAttribute('d');
+            const d = shape.getAttribute('d');
+            const matrix = shape.transform.baseVal.consolidate()?.matrix;
             const id = `flow-${index}-${tileIndex}-${shapeIndex}`;
             const path = svgNode('path', { id, class: 'letter',
               'fill-rule': shape.getAttribute('fill-rule') || 'nonzero' });
             axis.warp.append(path);
             axis.maskWarp.append(svgNode('use', { href: '#' + id }));
-            return { path, contours: contourPoints(d) };
+            // Тот же масштаб viewBox и та же матрица, что у исходного SVG:
+            // прямой вид, изгиб и белая маска используют один контур.
+            const contours = contourPoints(d).map(contour => contour.map(point => {
+              const x = matrix ? matrix.a * point.x + matrix.c * point.y + matrix.e : point.x;
+              const y = matrix ? matrix.b * point.x + matrix.d * point.y + matrix.f : point.y;
+              return { x: (x - box.x) * scaleX, y: (y - box.y) * scaleY };
+            }));
+            return { path, contours };
           })
         };
       });
