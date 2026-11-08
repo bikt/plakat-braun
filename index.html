@@ -9,10 +9,11 @@
   нечётные идут вверх, чётные вниз, а повтор фигуры подхватывает ушедшую.
   Переключатель выбирает один темп для всех осей или отдельный для каждой.
   При каждом открытии плакат прямой и неподвижный. Кнопка движения запускает
-  и останавливает ход с текущего положения; перетаскивание доступно на паузе.
+  и останавливает ход с текущего положения.
   Обычный вид останавливает ход и возвращает положение и ритм всех букв.
   Плакат закреплён в окне. При открытии ритм 4 4 3 4 4. Один жест
   прокрутки выбирает соседний ритм; после последнего круг начинается снова.
+  При смене ритма длина прямых участков меняется, а толщина штрихов и дуги сохраняются.
   Панель меняет порядок и характер переходов или даёт собрать свой круг.
   Наведение на B, R, A, U, N выбирает те же ритмы. Колесо возвращает
   управление прокрутке, а движение курсора по плакату — наведению.
@@ -102,17 +103,10 @@
     .axis-hit {
       fill: transparent;
       pointer-events: all;
-      cursor: grab;
       outline: none;
-      touch-action: none;
     }
 
-    .axis-hit.is-dragging {
-      cursor: grabbing;
-    }
-
-    .poster-scroll.is-scroll-rhythm,
-    .is-scroll-rhythm .axis-hit {
+    .poster-scroll.is-scroll-rhythm {
       touch-action: pinch-zoom;
     }
 
@@ -372,7 +366,12 @@
       ['pendulum', 'Маятник'], ['custom', 'Свой']
     ];
     const WHEEL_GESTURE_GAP_MS = 120;
-    const SCROLL_RHYTHM_RESPONSE = 0.035;
+    // Растяжимые участки по высоте исходных контуров B, R, A, U, N.
+    // Дуги, перекладины и их скругления целиком лежат вне этих участков.
+    const RHYTHM_STRETCH_BANDS = [
+      [[35, 102], [144, 210]], [[35, 67], [111, 176.5]], [[36, 141.5], [170.5, 244]],
+      [[0, 140]], [[0, 210]]
+    ];
 
     const straightTrajectory = () => ({
       uzly: [{ x: 0.5, y: 0, r: 0.5 }, { x: 0.5, y: 0.5, r: 0.5 }, { x: 0.5, y: 1, r: 0.5 }],
@@ -405,6 +404,7 @@
       linkedRhythm: true,
       rhythmStrength: 100,
       rhythmInertia: 15,
+      scrollRhythmInertia: 15,
       flowStrength: 100,
       flowPlasticity: 100,
       flowTrajectory: straightTrajectory()
@@ -572,7 +572,8 @@
         ['customRhythms', 'Свой ритм', 'выбор', { organ: 'braun-rhythm-editor', pri: { rhythmPreset: 'custom' } }],
         ['linkedRhythm', 'Связь колонок', 'двоичное', { podpisi: ['Связать колонки', 'Разъединить колонки'] }],
         ['rhythmStrength', 'Сила', 'сила'],
-        ['rhythmInertia', 'Инерция', 'инерция'],
+        ['rhythmInertia', 'Инерция наведения', 'инерция'],
+        ['scrollRhythmInertia', 'Инерция прокрутки', 'инерция', { pri: { scrollRhythm: true } }],
         ['h', 'Общий поток', { gde: 'Оси' }],
         ['g', 'Пластика'],
         ['flowStrength', 'Сила', 'сила'],
@@ -587,7 +588,7 @@
       desc: {
         distortedView: 'Возвращает сохранённую кривую и скорости, не включая движение. Обычный вид выпрямляет оси и останавливает ход.',
         invertedTheme: 'Меняет местами цвета фона и букв. Подписи на буквах становятся тёмными.',
-        motionEnabled: 'Запускает или останавливает автоматическое движение всех осей. Перетаскивание доступно и на паузе.',
+        motionEnabled: 'Запускает или останавливает автоматическое движение всех осей.',
         syncSpeeds: 'Переключает между одной общей скоростью и пятью независимыми скоростями осей.',
         speed: 'Одинаковая скорость всех пяти осей: нечётные идут вверх, чётные — вниз.',
         axisSpeed1: 'Скорость первой оси B вверх.',
@@ -601,6 +602,7 @@
         linkedRhythm: 'При наведении или фокусе с клавиатуры каждая буква выбирает свой ритм для всех пяти колонок. Без связи реагирует только выбранная колонка.',
         rhythmStrength: 'Насколько колонки растягиваются или сжимаются, чтобы перейти к выбранному ритму.',
         rhythmInertia: 'Насколько мягко колонки меняют ритм при наведении.',
+        scrollRhythmInertia: 'Чем больше значение, тем медленнее буквы переходят к следующему ритму. 15% — темп наведения по умолчанию.',
         flowStrength: 'Размах общего изгиба. Ноль возвращает прямые оси, не удаляя кривую.',
         flowPlasticity: 'Ноль — каждая буква сдвигается целиком. Сто — контур буквы изгибается по общей кривой.',
         flowTrajectory: 'Сверху вниз — высота плаката, влево-вправо — сдвиг всех пяти осей. Ведите кривую сверху вниз, без петель.'
@@ -632,26 +634,31 @@
       return scrollRhythmSteps()[scrollRhythmIndex - 1] || RHYTHM_PATTERNS[0];
     }
 
+    function rhythmResponseTime(inertia) {
+      return 0.02 + inertia / 100 * 0.86;
+    }
+
     function showScrollRhythm(index) {
       const previous = currentScrollRhythm();
       scrollRhythmIndex = index;
       scrollTakesPriority = true;
       const next = currentScrollRhythm();
       const incoming = next.findIndex((count, i) => count === 3 && previous[i] === 4);
-      let duration, delay;
+      let responsePeriods, delay;
       if (P.rhythmPreset === 'roll') {
-        duration = 330;
+        responsePeriods = 5;
         delay = i => i === incoming ? 0 : 48;
       } else if (P.rhythmPreset === 'breath') {
-        duration = 470;
+        responsePeriods = 7;
         delay = i => Math.abs(i - 2) * 56;
       } else if (P.rhythmPreset === 'pendulum') {
-        duration = 400;
+        responsePeriods = 6;
         delay = i => Math.abs(i - (incoming < 0 ? 2 : incoming)) * 28;
       }
       // Новый жест сразу задаёт цель, переход начинается с текущей формы букв.
-      scrollTransition = duration ? {
-        started: performance.now(), duration,
+      scrollTransition = responsePeriods ? {
+        started: performance.now(),
+        duration: responsePeriods * rhythmResponseTime(P.scrollRhythmInertia) * 1000,
         delays: axes.map((_, i) => delay(i)),
         from: axes.map(axis => axis.rhythmScale)
       } : null;
@@ -758,10 +765,7 @@
       rhythmScale: 1,
       hovered: false,
       pointerOver: false,
-      focused: false,
-      dragging: false,
-      pointerId: null,
-      lastPointerY: 0
+      focused: false
     }));
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -798,6 +802,35 @@
       const node = document.createElementNS(svgNS, tag);
       Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
       return node;
+    }
+
+    function rhythmStretchWeight(y, bands) {
+      let length = 0;
+      let traversed = 0;
+      for (const [start, end] of bands) {
+        const span = end - start;
+        length += span;
+        traversed += Math.max(0, Math.min(span, y - start));
+      }
+      return traversed / length;
+    }
+
+    function stretchRhythmY(y, weight, height, scale) {
+      // Компенсируем масштаб оси. Прибавку высоты получают только прямые участки.
+      return (y + height * (scale - 1) * weight) / scale;
+    }
+
+    function stretchRhythmPath(d, bands, height, scale) {
+      if (scale === 1) return d;
+      return d.replace(/([MVC])([^MHVCZ]+)/g, (_, command, args) => {
+        const coords = args.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi);
+        const mapped = coords.map((value, index) => {
+          if (command !== 'V' && index % 2 === 0) return value;
+          const y = Number(value);
+          return stretchRhythmY(y, rhythmStretchWeight(y, bands), height, scale).toFixed(3);
+        });
+        return command + mapped.join(' ');
+      });
     }
 
     // Сгущаем контур до шага не больше четырёх единиц исходного плаката.
@@ -868,16 +901,32 @@
       const use = axis.originals[0];
       const symbol = document.querySelector(use.getAttribute('href'));
       const box = symbol.viewBox.baseVal;
+      axis.stretchBands = RHYTHM_STRETCH_BANDS[index];
+      axis.glyphHeight = box.height;
+      axis.rhythmPathScale = 1;
+      // Один изменяемый символ на ось для всех повторов и маски подписей.
+      const rhythmSymbol = symbol.cloneNode(true);
+      rhythmSymbol.id = `${symbol.id}-rhythm`;
+      rhythmSymbol.removeAttribute('data-figma-node');
+      symbol.after(rhythmSymbol);
+      axis.originals.concat(axis.maskOriginals).forEach(node => node.setAttribute('href', `#${rhythmSymbol.id}`));
       const scaleX = Number(use.getAttribute('width')) / box.width;
       const scaleY = Number(use.getAttribute('height')) / box.height;
-      axis.glyphShapes = [...symbol.children].map(shape => {
+      axis.glyphShapes = [...symbol.children].map((shape, shapeIndex) => {
         const matrix = shape.transform.baseVal.consolidate()?.matrix;
+        const originalPath = shape.getAttribute('d');
         return {
+          originalPath,
+          rhythmPath: rhythmSymbol.children[shapeIndex],
           fillRule: shape.getAttribute('fill-rule') || 'nonzero',
-          contours: contourPoints(shape.getAttribute('d')).map(contour => contour.map(point => {
+          contours: contourPoints(originalPath).map(contour => contour.map(point => {
             const x = matrix ? matrix.a * point.x + matrix.c * point.y + matrix.e : point.x;
             const y = matrix ? matrix.b * point.x + matrix.d * point.y + matrix.f : point.y;
-            return { x: (x - box.x) * scaleX, y: (y - box.y) * scaleY };
+            const weight = rhythmStretchWeight(point.y, axis.stretchBands);
+            return {
+              x: (x - box.x) * scaleX, y: (y - box.y) * scaleY,
+              rhythmWeight: matrix?.d < 0 ? 1 - weight : weight
+            };
           }))
         };
       });
@@ -1012,7 +1061,16 @@
         axis.warp.style.display = axis.maskWarp.style.display = flowActive ? '' : 'none';
         axis.flowActive = flowActive;
       }
-      if (!flowActive) return;
+      if (!flowActive) {
+        if (axis.rhythmPathScale !== axis.rhythmScale) {
+          for (const shape of axis.glyphShapes) {
+            const d = stretchRhythmPath(shape.originalPath, axis.stretchBands, axis.glyphHeight, axis.rhythmScale);
+            shape.rhythmPath.setAttribute('d', d);
+          }
+          axis.rhythmPathScale = axis.rhythmScale;
+        }
+        return;
+      }
       const plasticity = P.flowPlasticity / 100;
       axis.tiles.forEach(tile => {
         const centerY = (tile.y + tile.height / 2) * axis.rhythmScale + offset;
@@ -1023,7 +1081,7 @@
           shape.path.style.display = outside ? 'none' : '';
           if (outside) return;
           const d = shape.contours.map(contour => contour.map((point, i) => {
-            const y = point.y + tile.y;
+            const y = tile.y + stretchRhythmY(point.y, point.rhythmWeight, tile.height, axis.rhythmScale);
             const shift = centerShift * (1 - plasticity)
               + flowShift(y * axis.rhythmScale + offset) * plasticity;
             return `${i ? 'L' : 'M'}${(point.x + tile.x + shift).toFixed(2)} ${y.toFixed(2)}`;
@@ -1037,7 +1095,7 @@
       if (index >= 0) scrollTakesPriority = false;
       axes.forEach((axis, i) => {
         axis.pointerOver = i === index;
-        axis.hovered = axis.pointerOver || axis.focused || axis.dragging;
+        axis.hovered = axis.pointerOver || axis.focused;
       });
     }
     // Сбрасываем наведение только при уходе со всего поля, не между путями.
@@ -1051,7 +1109,7 @@
     axisHits.forEach((hit, index) => {
       const axis = axes[index];
       const updateHover = () => {
-        axis.hovered = axis.pointerOver || axis.focused || axis.dragging;
+        axis.hovered = axis.pointerOver || axis.focused;
       };
 
       hit.addEventListener('focus', () => {
@@ -1067,48 +1125,14 @@
         updateHover();
       });
 
-      hit.addEventListener('pointerdown', (event) => {
-        if (event.pointerType === 'mouse' && event.button !== 0) return;
-        if (P.scrollRhythm && event.pointerType === 'touch') return;
-        if (event.pointerType !== 'touch') hoverAxis(index);
-        axis.dragging = true;
-        axis.pointerId = event.pointerId;
-        axis.lastPointerY = event.clientY;
-        hit.classList.add('is-dragging');
-        hit.setPointerCapture(event.pointerId);
-        updateHover();
-        event.preventDefault();
-      });
-
       hit.addEventListener('pointermove', (event) => {
-        if (event.pointerType !== 'touch') {
-          // Прокрутку прерывает только движение курсора, даже в той же колонке.
-          const moved = event.clientX !== cursorX || event.clientY !== cursorY;
-          cursorX = event.clientX;
-          cursorY = event.clientY;
-          if (moved && (scrollTakesPriority || !axis.pointerOver)) hoverAxis(index);
-        }
-        if (!axis.dragging) return;
-
-        const delta = (event.clientY - axis.lastPointerY) / (poster.getScreenCTM()?.d || 1);
-        const livePeriod = axis.period * axis.rhythmScale;
-        axis.phase += delta / livePeriod; // без ручки: фигура следует за рукой 1:1
-        axis.phase = ((axis.phase % 1) + 1) % 1;
-        axis.lastPointerY = event.clientY;
-        event.preventDefault();
+        if (event.pointerType === 'touch' || event.buttons) return;
+        // Прокрутку прерывает только движение курсора, даже в той же колонке.
+        const moved = event.clientX !== cursorX || event.clientY !== cursorY;
+        cursorX = event.clientX;
+        cursorY = event.clientY;
+        if (moved && (scrollTakesPriority || !axis.pointerOver)) hoverAxis(index);
       });
-
-      const release = (event) => {
-        if (!axis.dragging) return;
-        axis.dragging = false;
-        axis.pointerId = null;
-        hit.classList.remove('is-dragging');
-        if (hit.hasPointerCapture(event.pointerId)) hit.releasePointerCapture(event.pointerId);
-        updateHover();
-      };
-
-      hit.addEventListener('pointerup', release);
-      hit.addEventListener('pointercancel', release);
     });
 
     let previousTime = performance.now();
@@ -1145,19 +1169,12 @@
     function resetAxisPositions() {
       axes.forEach((axis, index) => {
         const hit = axisHits[index];
-        if (axis.pointerId !== null && hit.hasPointerCapture(axis.pointerId)) {
-          hit.releasePointerCapture(axis.pointerId);
-        }
         if (document.activeElement === hit) hit.blur();
         axis.phase = 0;
         axis.rhythmScale = 1;
         axis.hovered = false;
         axis.pointerOver = false;
         axis.focused = false;
-        axis.dragging = false;
-        axis.pointerId = null;
-        axis.lastPointerY = 0;
-        hit.classList.remove('is-dragging');
         axis.element.setAttribute('transform', 'translate(0 0) scale(1 1)');
         axis.mask.setAttribute('transform', 'translate(0 0) scale(1 1)');
       });
@@ -1188,12 +1205,12 @@
       let pattern = currentScrollRhythm();
       if (!scrolling && P.linkedRhythm) {
         // Курсор имеет приоритет перед фокусом клавиатуры.
-        const pointerAxis = axes.findIndex(axis => axis.pointerOver || axis.dragging);
+        const pointerAxis = axes.findIndex(axis => axis.pointerOver);
         const activeAxis = pointerAxis >= 0 ? pointerAxis : axes.findIndex(axis => axis.hovered);
         if (activeAxis >= 0) pattern = RHYTHM_PATTERNS[activeAxis + 1];
       }
       const strength = P.rhythmStrength / 100;
-      const responseTime = scrolling ? SCROLL_RHYTHM_RESPONSE : 0.02 + (P.rhythmInertia / 100) * 0.86;
+      const responseTime = rhythmResponseTime(scrolling ? P.scrollRhythmInertia : P.rhythmInertia);
       const follow = reducedMotion.matches ? 1 : 1 - Math.exp(-elapsed / responseTime);
       const transition = scrolling && !reducedMotion.matches ? scrollTransition : null;
 
@@ -1212,7 +1229,7 @@
         if (Math.abs(targetScale - axis.rhythmScale) < 0.0001) axis.rhythmScale = targetScale;
 
         const livePeriod = axis.period * axis.rhythmScale;
-        if (P.motionEnabled && !axis.dragging) {
+        if (P.motionEnabled) {
           const speed = P.syncSpeeds ? P.speed : P[`axisSpeed${index + 1}`];
           axis.phase += axis.direction * speed * elapsed / livePeriod;
         }
